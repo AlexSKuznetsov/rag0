@@ -38,9 +38,9 @@ format:
 
 typecheck:
 	@if command -v $(UV) >/dev/null 2>&1; then \
-		$(UV) run mypy src tests; \
+		$(UV) run mypy --explicit-package-bases src tests; \
 	else \
-		$(PYTHON) -m mypy src tests; \
+		$(PYTHON) -m mypy --explicit-package-bases src tests; \
 	fi
 
 test:
