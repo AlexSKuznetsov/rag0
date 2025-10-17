@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, cast
 
 from langgraph.graph import END, START, StateGraph
 
@@ -30,7 +30,7 @@ class OllamaResponder:
 
     def __init__(self, config: AskAgentConfig) -> None:
         self._config = config
-        self._chain = None
+        self._chain: Optional[Any] = None
         self._setup_chain()
 
     def _setup_chain(self) -> None:
@@ -157,18 +157,19 @@ class LangGraphAskAgent:
             on_step=on_step,
         )
         graph_builder = StateGraph(AskGraphState)
-        graph_builder.add_node("analysis", build_question_analyzer(deps))
-        graph_builder.add_node("retrieval", build_retriever(deps))
-        graph_builder.add_node("reasoner", build_reasoner(deps))
-        graph_builder.add_node("grade_answer", build_answer_grader(deps))
-        graph_builder.add_node("grade_documents", build_document_grader(deps))
-        graph_builder.add_node("rewrite_query", build_query_rewriter(deps))
-        graph_builder.add_node("response", build_response_generator(deps))
-        graph_builder.add_edge(START, "analysis")
-        graph_builder.add_edge("analysis", "retrieval")
-        graph_builder.add_edge("retrieval", "reasoner")
-        graph_builder.add_edge("reasoner", "grade_answer")
-        graph_builder.add_edge("grade_answer", "grade_documents")
+        graph_any = cast(Any, graph_builder)
+        graph_any.add_node("analysis", build_question_analyzer(deps))
+        graph_any.add_node("retrieval", build_retriever(deps))
+        graph_any.add_node("reasoner", build_reasoner(deps))
+        graph_any.add_node("grade_answer", build_answer_grader(deps))
+        graph_any.add_node("grade_documents", build_document_grader(deps))
+        graph_any.add_node("rewrite_query", build_query_rewriter(deps))
+        graph_any.add_node("response", build_response_generator(deps))
+        graph_any.add_edge(START, "analysis")
+        graph_any.add_edge("analysis", "retrieval")
+        graph_any.add_edge("retrieval", "reasoner")
+        graph_any.add_edge("reasoner", "grade_answer")
+        graph_any.add_edge("grade_answer", "grade_documents")
 
         def _route(state: AskGraphState) -> str:
             agent_state = AskAgentState.from_graph_state(state)
@@ -180,7 +181,7 @@ class LangGraphAskAgent:
                 return "response"
             return "rewrite_query"
 
-        graph_builder.add_conditional_edges(
+        graph_any.add_conditional_edges(
             "grade_documents",
             _route,
             {
@@ -188,8 +189,8 @@ class LangGraphAskAgent:
                 "response": "response",
             },
         )
-        graph_builder.add_edge("rewrite_query", "retrieval")
-        graph_builder.add_edge("response", END)
+        graph_any.add_edge("rewrite_query", "retrieval")
+        graph_any.add_edge("response", END)
         return graph_builder.compile()
 
     def run(

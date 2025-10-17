@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import chromadb
 from llama_index.core import Document, VectorStoreIndex
@@ -87,13 +87,17 @@ class VectorStoreManager:
         if not documents or not self.is_available():
             return
 
+        index = self._index
+        if index is None:
+            return
+
         for doc in documents:
             text = doc.get("text", "")
             if not text:
                 continue
             metadata = self._clean_metadata(doc.get("metadata", {}))
             li_doc = Document(text=text, metadata=metadata)
-            self._index.insert(li_doc)
+            index.insert(li_doc)
 
     def _create_query_bundle(self, prompt: str) -> Optional[QueryBundle]:
         if not prompt.strip():
@@ -203,20 +207,31 @@ class VectorStoreManager:
 
         return expansions
 
-    def query(self, prompt: str, top_k: int = 3) -> Iterable[Dict[str, Any]]:
-        if not self.is_available() or not prompt.strip():
+    def query(self, prompt: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        if not prompt.strip():
             return []
 
-        retriever = self._index.as_retriever(similarity_top_k=top_k)
+        index = self._index
+        if index is None:
+            return []
+
+        retriever = index.as_retriever(similarity_top_k=top_k)
         retriever_input = self._retriever_input(prompt)
         results = retriever.retrieve(retriever_input)
 
+        matches: List[Dict[str, Any]] = []
         for result in results:
-            yield {
-                "text": result.node.text,
-                "metadata": result.node.metadata,
-                "score": result.score,
-            }
+            node = cast(Any, result.node)
+            text = getattr(node, "text", "")
+            metadata = dict(getattr(node, "metadata", {}) or {})
+            matches.append(
+                {
+                    "text": text,
+                    "metadata": metadata,
+                    "score": result.score,
+                }
+            )
+        return matches
 
     def multi_query(
         self,

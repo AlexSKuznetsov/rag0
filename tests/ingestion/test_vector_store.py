@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from src.ingestion.vector_store import VectorStoreManager
 
 
 class StubVectorStoreManager(VectorStoreManager):
-    def __init__(self, responses: Dict[str, List[Dict[str, object]]]) -> None:  # type: ignore[call-arg]
+    def __init__(self, responses: Dict[str, List[Dict[str, object]]]) -> None:
         self.responses = responses
-        self._chunk_sidecar_cache = {}
+        self._chunk_sidecar_cache: Dict[str, List[Dict[str, Any]]] = {}
 
-    def query(self, prompt: str, top_k: int = 3):
-        return iter(self.responses.get(prompt, []))
+    def query(self, prompt: str, top_k: int = 3) -> List[Dict[str, object]]:
+        return list(self.responses.get(prompt, []))
 
 
 def test_multi_query_deduplicates_chunk_ids() -> None:

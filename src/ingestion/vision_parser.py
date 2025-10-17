@@ -32,7 +32,7 @@ class VisionParser:
             raise RuntimeError("Vision parser not configured. Provide a multimodal LLM client.")
 
         # Placeholder structured output; integrate vision model parsing here.
-        structured_content = {
+        structured_content: Dict[str, Any] = {
             "paragraphs": [
                 {
                     "text": "<vision model output placeholder>",
@@ -43,11 +43,14 @@ class VisionParser:
             "warnings": [],
         }
 
-        markdown = "\n\n".join(
-            block["text"] for block in structured_content["paragraphs"] if block.get("text")
-        )
+        paragraphs = [
+            block
+            for block in structured_content["paragraphs"]
+            if isinstance(block, dict) and block.get("text")
+        ]
+        markdown = "\n\n".join(str(block.get("text", "")) for block in paragraphs)
         structured_content["markdown"] = markdown
-        chunks = generate_chunks(structured_content["paragraphs"], metadata, self._chunking_config)
+        chunks = generate_chunks(paragraphs, metadata, self._chunking_config)
         structured_content["chunks"] = chunks
         metadata["chunk_descriptors"] = [
             {

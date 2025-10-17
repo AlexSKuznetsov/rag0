@@ -56,16 +56,19 @@ def _merge_short_paragraphs(
 
         if len(buffer_tokens) < threshold and len(tokens) < threshold:
             buffer["text"] = f"{buffer['text'].rstrip()}\n\n{text}"
-            pages = {
-                buffer.get("page"),
-                buffer.get("page_end"),
-                paragraph.get("page"),
-                paragraph.get("page_end"),
-            }
-            pages.discard(None)
-            if pages:
-                buffer["page"] = min(pages)
-                buffer["page_end"] = max(pages)
+            page_candidates = [
+                int(value)
+                for value in (
+                    buffer.get("page"),
+                    buffer.get("page_end"),
+                    paragraph.get("page"),
+                    paragraph.get("page_end"),
+                )
+                if isinstance(value, (int, float))
+            ]
+            if page_candidates:
+                buffer["page"] = min(page_candidates)
+                buffer["page_end"] = max(page_candidates)
             buffer_indices.append(index)
             buffer_tokens.extend(tokens)
             continue

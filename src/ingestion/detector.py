@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from .models import DocumentType
 
@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 try:
     import filetype
 except ImportError:  # pragma: no cover - optional dependency
-    filetype = None  # type: ignore[assignment]
+    filetype = cast(Any, None)
 
+_PdfReader: Optional[Any] = None
 try:
-    from pypdf import PdfReader
+    from pypdf import PdfReader as _PdfReader
 except ImportError:  # pragma: no cover - optional dependency
-    PdfReader = None  # type: ignore[assignment]
+    _PdfReader = None
+
+PdfReader = cast(Optional[Any], _PdfReader)
 
 
 def _detect_mime(file_path: Path) -> Optional[str]:

@@ -10,36 +10,100 @@ import webbrowser
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Deque, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Deque, Dict, Iterable, List, Optional, cast
 from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from rich.align import Align as AlignType
+    from rich.console import Console as ConsoleType
+    from rich.console import Group as GroupType
+    from rich.console import RenderableType as RenderableTypeType
+    from rich.layout import Layout as LayoutType
+    from rich.live import Live as LiveType
+    from rich.markdown import Markdown as MarkdownType
+    from rich.panel import Panel as PanelType
+    from rich.spinner import Spinner as SpinnerType
+    from rich.table import Table as TableType
+    from rich.text import Text as TextType
+else:
+    AlignType = Any
+    ConsoleType = Any
+    GroupType = Any
+    RenderableTypeType = Any
+    LayoutType = Any
+    LiveType = Any
+    MarkdownType = Any
+    PanelType = Any
+    SpinnerType = Any
+    TableType = Any
+    TextType = Any
+
+_AlignRuntime: Optional[AlignType] = None
+_ConsoleRuntime: Optional[ConsoleType] = None
+_GroupRuntime: Optional[GroupType] = None
+_RenderableRuntime: Optional[RenderableTypeType] = None
+_LayoutRuntime: Optional[LayoutType] = None
+_LiveRuntime: Optional[LiveType] = None
+_MarkdownRuntime: Optional[MarkdownType] = None
+_PanelRuntime: Optional[PanelType] = None
+_SpinnerRuntime: Optional[SpinnerType] = None
+_TableRuntime: Optional[TableType] = None
+_TextRuntime: Optional[TextType] = None
 
 try:  # pragma: no cover - exercised indirectly in CLI runtime
     from rich import box
-    from rich.align import Align
-    from rich.console import Console, Group, RenderableType
-    from rich.layout import Layout
-    from rich.live import Live
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.spinner import Spinner
-    from rich.table import Table
-    from rich.text import Text
+    from rich.align import Align as _AlignCls
+    from rich.console import Console as _ConsoleCls
+    from rich.console import Group as _GroupCls
+    from rich.console import RenderableType as _RenderableCls
+    from rich.layout import Layout as _LayoutCls
+    from rich.live import Live as _LiveCls
+    from rich.markdown import Markdown as _MarkdownCls
+    from rich.panel import Panel as _PanelCls
+    from rich.spinner import Spinner as _SpinnerCls
+    from rich.table import Table as _TableCls
+    from rich.text import Text as _TextCls
+
+    _AlignRuntime = cast(Optional[AlignType], _AlignCls)
+    _ConsoleRuntime = cast(Optional[ConsoleType], _ConsoleCls)
+    _GroupRuntime = cast(Optional[GroupType], _GroupCls)
+    _RenderableRuntime = cast(Optional[RenderableTypeType], _RenderableCls)
+    _LayoutRuntime = cast(Optional[LayoutType], _LayoutCls)
+    _LiveRuntime = cast(Optional[LiveType], _LiveCls)
+    _MarkdownRuntime = cast(Optional[MarkdownType], _MarkdownCls)
+    _PanelRuntime = cast(Optional[PanelType], _PanelCls)
+    _SpinnerRuntime = cast(Optional[SpinnerType], _SpinnerCls)
+    _TableRuntime = cast(Optional[TableType], _TableCls)
+    _TextRuntime = cast(Optional[TextType], _TextCls)
 except Exception:  # pragma: no cover - fallback if Rich missing
-    Align = None  # type: ignore[assignment]
-    Console = None  # type: ignore[assignment]
-    Group = None  # type: ignore[assignment]
-    Layout = None  # type: ignore[assignment]
-    Live = None  # type: ignore[assignment]
-    Markdown = None  # type: ignore[assignment]
-    Panel = None  # type: ignore[assignment]
-    Spinner = None  # type: ignore[assignment]
-    Table = None  # type: ignore[assignment]
-    Text = None  # type: ignore[assignment]
-    RenderableType = Any  # type: ignore[assignment]
+    box = cast(Any, None)
+    _AlignRuntime = None
+    _ConsoleRuntime = None
+    _GroupRuntime = None
+    _RenderableRuntime = None
+    _LayoutRuntime = None
+    _LiveRuntime = None
+    _MarkdownRuntime = None
+    _PanelRuntime = None
+    _SpinnerRuntime = None
+    _TableRuntime = None
+    _TextRuntime = None
+
+Align = cast(Any, _AlignRuntime)
+Console = cast(Any, _ConsoleRuntime)
+Group = cast(Any, _GroupRuntime)
+Layout = cast(Any, _LayoutRuntime)
+Live = cast(Any, _LiveRuntime)
+Markdown = cast(Any, _MarkdownRuntime)
+Panel = cast(Any, _PanelRuntime)
+Spinner = cast(Any, _SpinnerRuntime)
+Table = cast(Any, _TableRuntime)
+Text = cast(Any, _TextRuntime)
+RenderableRuntime = _RenderableRuntime if _RenderableRuntime is not None else Any
 
 RICH_AVAILABLE = Console is not None
 
-_CONSOLE: Optional[Console] = None
+_CONSOLE: Optional[ConsoleType] = None
 
 
 @dataclass(frozen=True)
@@ -64,7 +128,13 @@ class CLITheme:
 DEFAULT_THEME = CLITheme()
 
 
-def get_console() -> Optional[Console]:
+def _render_text(message: str, style: str) -> RenderableTypeType:
+    if Text is None:
+        return message
+    return cast(RenderableTypeType, Text(message, style=style))
+
+
+def get_console() -> Optional[ConsoleType]:
     """Return a singleton Rich Console configured for the CLI."""
 
     global _CONSOLE
@@ -86,7 +156,7 @@ def get_console() -> Optional[Console]:
 
 def print_session_banner(
     *,
-    console: Optional[Console],
+    console: Optional[ConsoleType],
     use_rich: bool,
     workflow_id: str,
     workflow_link: Optional[str],
@@ -115,7 +185,7 @@ def print_session_banner(
         print(f"Track progress  : {workflow_link}")
 
 
-def is_rich_live_supported(console: Optional[Console] = None) -> bool:
+def is_rich_live_supported(console: Optional[ConsoleType] = None) -> bool:
     """Return whether the current environment can render Rich Live layouts."""
 
     if not RICH_AVAILABLE:
@@ -155,7 +225,7 @@ class ResponseView:
     status: str
     command: str
     title: str
-    body: RenderableType
+    body: RenderableTypeType
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -182,7 +252,7 @@ class CLIState:
         self.chat_history.append(ChatTurn(role=role, content=entry))
 
 
-def create_cli_layout(theme: CLITheme = DEFAULT_THEME) -> Layout:
+def create_cli_layout(theme: CLITheme = DEFAULT_THEME) -> LayoutType:
     """Build the Rich layout for the interactive session."""
 
     if not RICH_AVAILABLE or Layout is None:
@@ -201,7 +271,7 @@ def create_cli_layout(theme: CLITheme = DEFAULT_THEME) -> Layout:
     return layout
 
 
-def _header_table(state: CLIState) -> Table:
+def _header_table(state: CLIState) -> TableType:
     table = Table.grid(padding=(0, 1))
     table.add_column(justify="left")
     theme = state.theme
@@ -218,7 +288,7 @@ def _header_table(state: CLIState) -> Table:
     return table
 
 
-def render_header(state: CLIState) -> RenderableType:
+def render_header(state: CLIState) -> RenderableTypeType:
     """Return the header panel renderable."""
 
     theme = state.theme
@@ -229,7 +299,7 @@ def render_header(state: CLIState) -> RenderableType:
     )
 
 
-def render_chat_panel(state: CLIState) -> RenderableType:
+def render_chat_panel(state: CLIState) -> RenderableTypeType:
     """Render the chat history panel."""
 
     theme = state.theme
@@ -266,7 +336,7 @@ def render_chat_panel(state: CLIState) -> RenderableType:
     )
 
 
-def render_response_panel(state: CLIState) -> RenderableType:
+def render_response_panel(state: CLIState) -> RenderableTypeType:
     """Render the response panel for the latest workflow output."""
 
     theme = state.theme
@@ -298,11 +368,11 @@ def render_response_panel(state: CLIState) -> RenderableType:
     )
 
 
-def render_footer(state: CLIState) -> RenderableType:
+def render_footer(state: CLIState) -> RenderableTypeType:
     """Render the footer with status, loading indicators, and hints."""
 
     theme = state.theme
-    rows: List[RenderableType] = []
+    rows: List[RenderableTypeType] = []
 
     if state.error_message:
         rows.append(Text(state.error_message, style=f"bold {theme.error}"))
@@ -321,7 +391,7 @@ def render_footer(state: CLIState) -> RenderableType:
     if state.hint_message:
         rows.append(Text(state.hint_message, style=f"italic {theme.footer_fg}"))
 
-    content: RenderableType
+    content: RenderableTypeType
     if len(rows) == 1:
         content = rows[0]
     else:
@@ -334,7 +404,7 @@ def render_footer(state: CLIState) -> RenderableType:
     )
 
 
-def refresh_layout(layout: Layout, state: CLIState) -> None:
+def refresh_layout(layout: LayoutType, state: CLIState) -> None:
     """Update the root layout panels with the latest state."""
 
     if not RICH_AVAILABLE:
@@ -374,7 +444,7 @@ def _summarize_answer(answer: str, max_chars: int = 160) -> str:
     return textwrap.shorten(text, width=max_chars, placeholder="…")
 
 
-def _answer_renderable(answer: str, theme: CLITheme) -> RenderableType:
+def _answer_renderable(answer: str, theme: CLITheme) -> RenderableTypeType:
     cleaned = answer.strip()
     if not cleaned:
         return Text("I could not find that in the stored documents.", style=f"italic {theme.warning}")
@@ -383,7 +453,7 @@ def _answer_renderable(answer: str, theme: CLITheme) -> RenderableType:
     return Text(cleaned, style=theme.response_fg)
 
 
-def _build_citations_panel(citations: List[str], theme: CLITheme) -> Panel:
+def _build_citations_panel(citations: List[str], theme: CLITheme) -> PanelType:
     if not citations:
         content = Text("No citations returned.", style=f"italic {theme.warning}")
         return Panel(
@@ -431,7 +501,7 @@ def _reasoning_label_style(label: str, theme: CLITheme) -> str:
     return theme.highlight
 
 
-def _format_metadata(metadata: Dict[str, Any], theme: CLITheme) -> Text:
+def _format_metadata(metadata: Dict[str, Any], theme: CLITheme) -> TextType:
     meta_text = Text()
     for index, (key, value) in enumerate(metadata.items()):
         if index > 0:
@@ -441,7 +511,7 @@ def _format_metadata(metadata: Dict[str, Any], theme: CLITheme) -> Text:
     return meta_text
 
 
-def _build_reasoning_panel(reasoning: Iterable[Dict[str, Any]], theme: CLITheme) -> Optional[Panel]:
+def _build_reasoning_panel(reasoning: Iterable[Dict[str, Any]], theme: CLITheme) -> Optional[PanelType]:
     steps = list(reasoning)
     if not steps:
         return None
@@ -477,7 +547,7 @@ def _build_reasoning_panel(reasoning: Iterable[Dict[str, Any]], theme: CLITheme)
 
 def _build_documents_panel(
     documents: Iterable[Dict[str, Any]], theme: CLITheme, limit: int = 3
-) -> Optional[Panel]:
+) -> Optional[PanelType]:
     docs = list(documents)
     if not docs:
         return None
@@ -536,7 +606,7 @@ def _build_progress_panel(
     events: Iterable[Dict[str, Any]],
     theme: CLITheme,
     start_index: int = 1,
-) -> Optional[Panel]:
+) -> Optional[PanelType]:
     items = list(events)
     if not items:
         return None
@@ -577,6 +647,9 @@ def progress_label_style(label: str, theme: CLITheme = DEFAULT_THEME) -> str:
 
 
 def _build_ask_response_view(payload: Dict[str, Any], theme: CLITheme) -> ResponseView:
+    if any(component is None for component in (Text, Panel, Align, Group)):
+        raise RuntimeError("Rich components are unavailable; cannot render ask response view.")
+
     answer = str(payload.get("answer") or "").strip()
     citations = list(payload.get("citations") or [])
     documents = payload.get("documents") or []
@@ -600,12 +673,12 @@ def _build_ask_response_view(payload: Dict[str, Any], theme: CLITheme) -> Respon
     )
 
     documents_panel = _build_documents_panel(documents, theme)
-    segments: List[RenderableType] = []
+    segments: List[RenderableTypeType] = []
     segments.extend([summary_panel, answer_panel])
     if documents_panel:
         segments.append(documents_panel)
 
-    body = Group(*segments)
+    body = cast(RenderableTypeType, Group(*segments))
 
     alerts: List[str] = []
     if not answer:
@@ -634,11 +707,13 @@ def _build_ask_response_view(payload: Dict[str, Any], theme: CLITheme) -> Respon
     )
 
 
-def _json_renderable(data: Dict[str, Any], theme: CLITheme) -> RenderableType:
+def _json_renderable(data: Dict[str, Any], theme: CLITheme) -> RenderableTypeType:
     text = json.dumps(data, indent=2, sort_keys=True)
     if RICH_AVAILABLE and Markdown is not None:
-        return Markdown(f"```json\n{text}\n```")
-    return Text(text, style=theme.response_fg)
+        return cast(RenderableTypeType, Markdown(f"```json\n{text}\n```"))
+    if Text is None:
+        return text
+    return cast(RenderableTypeType, Text(text, style=theme.response_fg))
 
 
 def build_response_view(result: Dict[str, Any], theme: CLITheme = DEFAULT_THEME) -> ResponseView:
@@ -650,7 +725,7 @@ def build_response_view(result: Dict[str, Any], theme: CLITheme = DEFAULT_THEME)
 
     if status == "error":
         message = result.get("message") or "Workflow returned an error."
-        body = Text(message, style=f"bold {theme.error}")
+        body = _render_text(message, f"bold {theme.error}")
         return ResponseView(
             status="error",
             command=command,
@@ -661,7 +736,7 @@ def build_response_view(result: Dict[str, Any], theme: CLITheme = DEFAULT_THEME)
 
     if status == "quit":
         message = result.get("message", "Session ended.")
-        body = Text(message, style=f"bold {theme.warning}")
+        body = _render_text(message, f"bold {theme.warning}")
         return ResponseView(
             status="warn",
             command=command or "quit",
@@ -675,7 +750,10 @@ def build_response_view(result: Dict[str, Any], theme: CLITheme = DEFAULT_THEME)
 
     if command == "ingest":
         if not payload:
-            body = Text("Ingestion completed with no reported artifacts.", style=theme.response_fg)
+            body = _render_text(
+                "Ingestion completed with no reported artifacts.",
+                theme.response_fg,
+            )
         else:
             body = _json_renderable(payload, theme)
         return ResponseView(
@@ -688,7 +766,7 @@ def build_response_view(result: Dict[str, Any], theme: CLITheme = DEFAULT_THEME)
 
     if command == "stat":
         if not payload:
-            body = Text("No stats available.", style=theme.response_fg)
+            body = _render_text("No stats available.", theme.response_fg)
         else:
             body = _json_renderable(payload, theme)
         return ResponseView(
@@ -704,7 +782,7 @@ def build_response_view(result: Dict[str, Any], theme: CLITheme = DEFAULT_THEME)
         body = _json_renderable(payload, theme)
     else:
         message = result.get("message") or "No data returned."
-        body = Text(message, style=theme.response_fg)
+        body = _render_text(message, theme.response_fg)
 
     return ResponseView(
         status="success",
@@ -776,12 +854,6 @@ def emit_plain_result(result: Dict[str, Any]) -> None:
         print(json.dumps(payload, indent=2))
     else:
         print(result.get("message", ""))
-
-
-def _display_interactive_result(result: Dict[str, Any]) -> None:
-    """Backward-compatible shim for legacy callers expecting print behavior."""
-
-    emit_plain_result(result)
 
 
 DEFAULT_PARSED_DIR = Path("parsed")
@@ -895,49 +967,6 @@ def build_main_cli_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
-def _display_interactive_result(result: Dict[str, Any]) -> None:
-    status = result.get("status")
-    if status == "error":
-        message = result.get("message") or "Workflow returned an error."
-        print(f"[error] {message}")
-        return
-
-    if status == "quit":
-        print(result.get("message", "Session ended."))
-        return
-
-    payload = result.get("result") or {}
-    command = (result.get("command") or "").lower()
-
-    if command == "ingest":
-        print("Ingestion completed.")
-        print(json.dumps(payload, indent=2))
-        return
-
-    if command == "ask":
-        answer = payload.get("answer")
-        citations = payload.get("citations") or []
-        if answer:
-            print(answer)
-            if citations:
-                print(f"Citations: {', '.join(citations)}")
-        else:
-            print("I could not find that in the stored documents.")
-        reasoning = payload.get("reasoning") or []
-        if reasoning:
-            print("\nReasoning trace:")
-            for step in reasoning:
-                label = step.get("label", "step")
-                detail = step.get("detail", "")
-                print(f"- {label}: {detail}")
-        return
-
-    if command == "stat":
-        if not payload:
-            print("No stats available.")
-            return
-        print(json.dumps(payload, indent=2))
 
 
 def temporal_ui_url(address: str, namespace: str) -> Optional[str]:

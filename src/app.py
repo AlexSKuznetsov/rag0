@@ -27,6 +27,22 @@ from .workflows import MainWorkflow, MainWorkflowConfig
 load_dotenv()
 
 
+def _safe_int(value: object, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return default
+        try:
+            return int(stripped)
+        except ValueError:
+            return default
+    return default
+
+
 async def _query_prompt(
     handle: WorkflowHandle,
     last_revision: int,
@@ -34,12 +50,13 @@ async def _query_prompt(
     """Fetch the latest prompt payload and return revision, prompt, and error."""
 
     try:
-        payload: Dict[str, object] = await handle.query(MainWorkflow.get_next_prompt)
+        payload_raw: Optional[Dict[str, object]] = await handle.query(MainWorkflow.get_next_prompt)
     except Exception as exc:  # pragma: no cover - defensive network guard
         return last_revision, None, f"Unable to fetch workflow prompt: {exc}"
 
-    prompt_text = str((payload or {}).get("prompt") or "")
-    revision = int((payload or {}).get("revision", 0))
+    payload = payload_raw if isinstance(payload_raw, dict) else {}
+    prompt_text = str(payload.get("prompt") or "")
+    revision = _safe_int(payload.get("revision"), last_revision)
 
     if revision <= last_revision or not prompt_text:
         return revision, None, None
@@ -100,14 +117,14 @@ async def _poll_for_result(
     deadline = loop.time() + 30.0  # generous upper bound for long-running commands
     while True:
         try:
-            result = await handle.query(MainWorkflow.get_last_result)
+            result_raw = await handle.query(MainWorkflow.get_last_result)
         except Exception as exc:  # pragma: no cover - defensive network guard
             return None, f"Unable to query workflow result: {exc}"
 
-        if result is not None:
-            revision = int(result.get("revision", 0))
+        if isinstance(result_raw, dict):
+            revision = _safe_int(result_raw.get("revision"), last_revision)
             if revision > last_revision:
-                return result, None
+                return result_raw, None
 
         if loop.time() >= deadline:
             return None, "Timed out waiting for workflow result."
@@ -180,7 +197,11 @@ async def _run_workflow_plain(
     """Fallback interactive loop without Rich UI enhancements."""
 
     console = get_console() if RICH_AVAILABLE else None
-    use_rich = bool(console and console.is_terminal and console.is_interactive)
+    use_rich = bool(
+        console is not None
+        and getattr(console, "is_terminal", False)
+        and getattr(console, "is_interactive", False)
+    )
 
     print_session_banner(
         console=console,
@@ -194,7 +215,7 @@ async def _run_workflow_plain(
     last_result_revision = 0
 
     def handle_prompt(prompt: str) -> None:
-        if use_rich:
+        if use_rich and console is not None:
             from rich.panel import Panel
 
             message = prompt.strip() or "Workflow awaiting input."
@@ -207,7 +228,7 @@ async def _run_workflow_plain(
             )
 
     def handle_error(message: str) -> None:
-        if use_rich:
+        if use_rich and console is not None:
             console.print(f"[bold red]Error:[/] {message}")
         else:
             print(f"[error] {message}")
@@ -233,7 +254,7 @@ async def _run_workflow_plain(
         while True:
             prompt_wait = (
                 console.status("[cyan]Waiting for workflow prompt…[/]", spinner="dots")
-                if use_rich
+                if use_rich and console is not None
                 else nullcontext()
             )
             with prompt_wait:
@@ -245,12 +266,12 @@ async def _run_workflow_plain(
                 )
 
             try:
-                if use_rich:
+                if use_rich and console is not None:
                     raw_command = console.input("[bold cyan]rag0> [/]")
                 else:
                     raw_command = input("rag0> ")
             except EOFError:
-                if use_rich:
+                if use_rich and console is not None:
                     console.print("\n[bold yellow]Input closed. Exiting session.[/]")
                 else:
                     print("\nInput closed. Exiting session.")
@@ -268,7 +289,9 @@ async def _run_workflow_plain(
             final_error: Optional[str] = None
 
             result_wait = (
-                console.status("[cyan]Processing command…[/]", spinner="dots") if use_rich else nullcontext()
+                console.status("[cyan]Processing command…[/]", spinner="dots")
+                if use_rich and console is not None
+                else nullcontext()
             )
             with result_wait as status:
                 while True:
@@ -277,19 +300,21 @@ async def _run_workflow_plain(
                         final_error = error or "No response received from workflow."
                         break
 
-                    last_result_revision = int(result.get("revision", last_result_revision))
+                    last_result_revision = _safe_int(result.get("revision"), last_result_revision)
                     status_value = str(result.get("status") or "").lower()
                     command = str(result.get("command") or "").lower()
-                    payload = result.get("result") or {}
+                    payload_obj = result.get("result")
+                    payload = payload_obj if isinstance(payload_obj, dict) else {}
 
                     if status_value == "running" and command == "ask":
-                        progress = payload.get("progress") or []
+                        progress_obj = payload.get("progress") or []
+                        progress = progress_obj if isinstance(progress_obj, list) else []
                         if progress:
                             new_events = progress[progress_seen:]
                             if new_events:
                                 start_index = progress_seen + 1
                                 progress_seen = len(progress)
-                                if use_rich:
+                                if use_rich and console is not None and status is not None:
                                     last_event = new_events[-1]
                                     raw_label = str(last_event.get("label", "") or "step")
                                     label_text = raw_label.replace("_", " ").title()
@@ -303,6 +328,8 @@ async def _run_workflow_plain(
                                         console.print(f"[bold {event_color}]{idx}. {event_label}[/] {detail}")
                                 else:
                                     for idx, event in enumerate(new_events, start=start_index):
+                                        if not isinstance(event, dict):
+                                            continue
                                         event_label_raw = str(event.get("label", "") or "step")
                                         event_label = event_label_raw.replace("_", " ").title()
                                         detail = str(event.get("detail", "")).strip() or "Step completed."
@@ -314,7 +341,7 @@ async def _run_workflow_plain(
 
             if final_result is None:
                 warning = final_error or "No response received from workflow."
-                if use_rich:
+                if use_rich and console is not None:
                     console.print(f"[bold yellow]Warning:[/] {warning}")
                 else:
                     print(f"[warn] {warning}")
@@ -322,7 +349,7 @@ async def _run_workflow_plain(
 
             result = final_result
 
-            if use_rich:
+            if use_rich and console is not None:
                 view = build_response_view(result)
                 console.print(view.body)
                 alert = view.metadata.get("message")
@@ -335,7 +362,7 @@ async def _run_workflow_plain(
             if result.get("status") == "quit":
                 break
     except KeyboardInterrupt:
-        if use_rich:
+        if use_rich and console is not None:
             console.print("\n[bold yellow]Interrupted. Exiting session.[/]")
         else:
             print("\nInterrupted. Exiting session.")

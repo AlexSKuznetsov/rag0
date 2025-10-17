@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List, Sequence, Tuple, cast
 
 from llama_index.core.schema import QueryBundle
 from src.agents.ask import AskAgentConfig, AskAgentState, LangGraphAskAgent
@@ -9,18 +9,28 @@ from src.workflows import QuestionWorkflowInput
 
 
 class StubVectorStore:
-    def __init__(self, responses: List[dict]) -> None:
+    def __init__(self, responses: List[Dict[str, Any]]) -> None:
         self.responses = responses
-        self.requested = []
+        self.requested: List[
+            Tuple[Tuple[str, ...], int, bool, int, Tuple[str, ...]]
+        ] = []
 
-    def multi_query(self, prompts, top_k: int, deduplicate: bool, neighbor_span: int = 0, dedupe_fields=None):
-        self.requested.append((tuple(prompts), top_k, deduplicate, neighbor_span, tuple(dedupe_fields or [])))
+    def multi_query(
+        self,
+        prompts: Sequence[str],
+        top_k: int,
+        deduplicate: bool,
+        neighbor_span: int = 0,
+        dedupe_fields: Sequence[str] | None = None,
+    ):
+        dedupe_tuple = tuple(dedupe_fields or [])
+        self.requested.append((tuple(prompts), top_k, deduplicate, neighbor_span, dedupe_tuple))
         return self.responses
 
 
 class StubResponder:
     def __init__(self) -> None:
-        self.prompts = []
+        self.prompts: List[Tuple[str, str]] = []
 
     def __call__(self, state: AskAgentState, context: str) -> str:
         self.prompts.append((state.question, context))
@@ -150,6 +160,10 @@ def test_reflection_loop_triggers_additional_retrieval():
 
 def test_vector_store_retriever_input_with_embedding(monkeypatch):
     manager = object.__new__(VectorStoreManager)
-    manager._create_query_bundle = lambda prompt: QueryBundle(prompt, embedding=[0.1, 0.2])  # type: ignore[attr-defined]
-    bundle = VectorStoreManager._retriever_input(manager, "question?")  # type: ignore[arg-type]
+
+    def fake_create_query_bundle(prompt: str) -> QueryBundle:
+        return QueryBundle(prompt, embedding=[0.1, 0.2])
+
+    cast(Any, manager)._create_query_bundle = fake_create_query_bundle
+    bundle = VectorStoreManager._retriever_input(cast(VectorStoreManager, manager), "question?")
     assert isinstance(bundle, QueryBundle)
