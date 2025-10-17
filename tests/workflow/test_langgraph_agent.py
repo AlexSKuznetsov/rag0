@@ -11,9 +11,7 @@ from src.workflows import QuestionWorkflowInput
 class StubVectorStore:
     def __init__(self, responses: List[Dict[str, Any]]) -> None:
         self.responses = responses
-        self.requested: List[
-            Tuple[Tuple[str, ...], int, bool, int, Tuple[str, ...]]
-        ] = []
+        self.requested: List[Tuple[Tuple[str, ...], int, bool, int, Tuple[str, ...]]] = []
 
     def multi_query(
         self,

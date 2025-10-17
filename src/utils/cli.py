@@ -968,7 +968,6 @@ def build_main_cli_parser() -> argparse.ArgumentParser:
     return parser
 
 
-
 def temporal_ui_url(address: str, namespace: str) -> Optional[str]:
     """Return the Temporal UI base URL for a given address/namespace."""
 
