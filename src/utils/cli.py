@@ -9,9 +9,10 @@ import textwrap
 import webbrowser
 from collections import deque
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Deque, Dict, Iterable, List, Optional, cast
 from urllib.parse import urlparse
+
+from ..config import WorkflowConfig
 
 if TYPE_CHECKING:
     from rich.align import Align as AlignType
@@ -856,73 +857,53 @@ def emit_plain_result(result: Dict[str, Any]) -> None:
         print(result.get("message", ""))
 
 
-DEFAULT_PARSED_DIR = Path("parsed")
-DEFAULT_TEMPORAL_ADDRESS = "127.0.0.1:7233"
-DEFAULT_TEMPORAL_NAMESPACE = "default"
-DEFAULT_TEMPORAL_TASK_QUEUE = "rag0"
-DEFAULT_OLLAMA_MODEL = os.environ.get("RAG0_OLLAMA_MODEL", "qwen3:4b")
-DEFAULT_OLLAMA_BASE_URL = os.environ.get("RAG0_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-DEFAULT_ASK_TOP_K = int(os.environ.get("RAG0_ASK_TOP_K", "6"))
-DEFAULT_ASK_MAX_SUBQUESTIONS = int(os.environ.get("RAG0_ASK_MAX_SUBQUESTIONS", "3"))
-DEFAULT_ASK_TEMPERATURE = float(os.environ.get("RAG0_ASK_TEMPERATURE", "0.0"))
-DEFAULT_ASK_NEIGHBOR_SPAN = int(os.environ.get("RAG0_ASK_NEIGHBOR_SPAN", "1"))
-DEFAULT_ASK_REFLECTION_ENABLED = os.environ.get("RAG0_ASK_REFLECTION_ENABLED", "1").lower() not in {
-    "0",
-    "false",
-    "no",
-}
-DEFAULT_ASK_MAX_REFLECTIONS = int(os.environ.get("RAG0_ASK_MAX_REFLECTIONS", "2"))
-DEFAULT_ASK_MIN_CITATIONS = int(os.environ.get("RAG0_ASK_MIN_CITATIONS", "1"))
-DEFAULT_CHUNK_SIZE = int(os.environ.get("RAG0_CHUNK_SIZE", "700"))
-DEFAULT_CHUNK_OVERLAP = int(os.environ.get("RAG0_CHUNK_OVERLAP", "150"))
-DEFAULT_CHUNK_MERGE_THRESHOLD = int(os.environ.get("RAG0_CHUNK_MERGE_THRESHOLD", "60"))
-
-
 def build_main_cli_parser() -> argparse.ArgumentParser:
     """Return the argument parser for the interactive application."""
 
+    defaults = WorkflowConfig()
+
     parser = argparse.ArgumentParser(description="RAG0 interactive workflow CLI")
-    parser.add_argument("--address", default=DEFAULT_TEMPORAL_ADDRESS)
-    parser.add_argument("--namespace", default=DEFAULT_TEMPORAL_NAMESPACE)
-    parser.add_argument("--task-queue", default=DEFAULT_TEMPORAL_TASK_QUEUE)
-    parser.add_argument("--parsed-dir", default=str(DEFAULT_PARSED_DIR))
-    parser.add_argument("--index-dir", default="storage/index")
-    parser.add_argument("--workflow-id-prefix", default=None)
+    parser.add_argument("--address", default=defaults.address)
+    parser.add_argument("--namespace", default=defaults.namespace)
+    parser.add_argument("--task-queue", default=defaults.task_queue)
+    parser.add_argument("--parsed-dir", default=defaults.parsed_dir)
+    parser.add_argument("--index-dir", default=defaults.index_dir)
+    parser.add_argument("--workflow-id-prefix", default=defaults.workflow_id_prefix)
     parser.add_argument(
         "--ask-top-k",
         type=int,
-        default=DEFAULT_ASK_TOP_K,
+        default=defaults.ask_top_k,
         help="Default top_k for ask workflow.",
     )
     parser.add_argument(
         "--ask-max-subquestions",
         type=int,
-        default=DEFAULT_ASK_MAX_SUBQUESTIONS,
+        default=defaults.ask_max_subquestions,
         help="Maximum number of generated sub-questions per ask invocation.",
     )
     parser.add_argument(
         "--ask-neighbor-span",
         type=int,
-        default=DEFAULT_ASK_NEIGHBOR_SPAN,
+        default=defaults.ask_neighbor_span,
         help="Number of adjacent chunks to expand around each retrieved result.",
     )
     parser.add_argument(
         "--ask-max-reflections",
         type=int,
-        default=DEFAULT_ASK_MAX_REFLECTIONS,
+        default=defaults.ask_max_reflections,
         help="Maximum number of self-reflection loops per ask invocation.",
     )
     parser.add_argument(
         "--ask-min-citations",
         type=int,
-        default=DEFAULT_ASK_MIN_CITATIONS,
+        default=defaults.ask_min_citations,
         help="Minimum number of citations expected in the final answer.",
     )
     parser.add_argument(
         "--ask-reflection-enabled",
         dest="ask_reflection_enabled",
         action="store_true",
-        default=DEFAULT_ASK_REFLECTION_ENABLED,
+        default=defaults.ask_reflection_enabled,
         help="Enable self-reflective grading to improve retrieval quality.",
     )
     parser.add_argument(
@@ -933,36 +914,36 @@ def build_main_cli_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--ollama-model",
-        default=DEFAULT_OLLAMA_MODEL,
+        default=defaults.ollama_model,
         help="Ollama model identifier to use for reasoning.",
     )
     parser.add_argument(
         "--ollama-base-url",
-        default=DEFAULT_OLLAMA_BASE_URL,
+        default=defaults.ollama_base_url,
         help="Base URL for the local Ollama server.",
     )
     parser.add_argument(
         "--ask-temperature",
         type=float,
-        default=DEFAULT_ASK_TEMPERATURE,
+        default=defaults.ask_temperature,
         help="Temperature used by the Ollama reasoning model.",
     )
     parser.add_argument(
         "--chunk-size",
         type=int,
-        default=DEFAULT_CHUNK_SIZE,
+        default=defaults.chunk_size,
         help="Token-aligned chunk size used during ingestion.",
     )
     parser.add_argument(
         "--chunk-overlap",
         type=int,
-        default=DEFAULT_CHUNK_OVERLAP,
+        default=defaults.chunk_overlap,
         help="Token overlap between successive chunks.",
     )
     parser.add_argument(
         "--chunk-merge-threshold",
         type=int,
-        default=DEFAULT_CHUNK_MERGE_THRESHOLD,
+        default=defaults.chunk_merge_threshold,
         help="Token threshold for merging short paragraphs before chunking.",
     )
     return parser

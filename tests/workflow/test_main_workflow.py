@@ -9,7 +9,8 @@ from src.activities import (
     render_cli_menu_activity,
     stats_command_activity,
 )
-from src.workflows import MainWorkflow, MainWorkflowConfig
+from src.config import WorkflowConfig
+from src.workflows import MainWorkflow
 
 temporalio_testing = pytest.importorskip("temporalio.testing")
 temporalio_worker = pytest.importorskip("temporalio.worker")
@@ -34,7 +35,7 @@ async def test_main_workflow_handles_quit() -> None:
         ):
             handle = await env.client.start_workflow(
                 MainWorkflow.run,
-                MainWorkflowConfig(),
+                WorkflowConfig(),
                 id="test-main-workflow-quit",
                 task_queue="test-main-workflow",
             )

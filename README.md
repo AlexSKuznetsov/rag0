@@ -1,6 +1,12 @@
-# RAG0 Document Processing Workflow
+# RAG0 Document processing orchestration with Temporal
 
-RAG0 orchestrates an end-to-end ingestion and retrieval experience on top of Temporal. Temporal supplies durable execution so long-running ingestion, grading, and retrieval steps survive restarts, capture auditable event history, and run across scalable worker pools. Documents flow from the CLI through ingestion activities into a Chroma-backed index, while an ask workflow—built with LangGraph and an Ollama model—answers questions with graded reflection and citations.
+This project aimed to demonstrate the use of Temporal for orchestrating document processing workflows using different tools like Docling, LlamaIndex, Ollama, LangGraph, and ChromaDB. It also shows different approaches for ingesting and retrieving documents: for ingesting documents, we can use Docling, LlamaIndex, and Ollama with predifined workflow steps. For retrieving documents, we can use LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
+
+## Why I created this project?
+
+- Most examples online skip the end-to-end document pipeline.
+- I wanted to show several ingestion and retrieval paths powered by Temporal.
+- Temporal keeps long ingestion, grading, and retrieval runs durable, auditable, and scalable. 
 
 ## Project Layout
 
@@ -23,7 +29,7 @@ rag0/
 └── README.md
 ```
 
-## Stack
+## 📦 Stack
 
 - [Python 3.11+](https://www.python.org/) with [`uv`](https://github.com/astral-sh/uv)-powered dependency management (Makefile fallback to `pip`).
 - [Temporal Server](https://temporal.io/) and the [Temporal Python SDK](https://docs.temporal.io/dev-guide/python/) for workflow orchestration and scheduling.
@@ -31,8 +37,9 @@ rag0/
 - Vision-capable LLMs (e.g., [Qwen 3-VL](https://qwenlm.github.io/en/) via [Ollama](https://ollama.com/)) to OCR scanned PDFs and images.
 - [LangGraph](https://langchain-ai.github.io/langgraph/) + [LangChain](https://www.langchain.com/) to build the ask agent, including grading nodes and query rewriting.
 - [ChromaDB](https://www.trychroma.com/) as the embedded vector database backed by `storage/index/`.
-- [Granite Embedding](https://ollama.com/library/granite-embedding) model served via [Ollama](https://ollama.com/) for dense vector representations.
-- [`python-dotenv`](https://github.com/theskumar/python-dotenv) for environment configuration, [`pytest`](https://docs.pytest.org/) for automated testing, and [`logging`](https://docs.python.org/3/library/logging.html) for observability.
+- [Qwen3-4b](https://ollama.com/library/qwen3:4b) Qwen3 4b MoE model served via [Ollama](https://ollama.com/). 
+- [Granite Embedding](https://ollama.com/library/granite-embedding) lightweight embedding model served via [Ollama](https://ollama.com/).
+
 
 ## Workflow Overview
 
@@ -67,7 +74,7 @@ flowchart LR
 
 ![Event Loop Diagram](docs/event-loop.png)
 
-Temporal acts as the event loop for the system. Commands issued through `src/app.py` are translated into workflow invocations that run inside the worker (`src/temporal/worker.py`). The worker pulls tasks from Temporal, executes the appropriate activities, and emits status events back to the CLI. This feedback loop keeps ingestion, indexing, and ask operations responsive even when long-running parsing or retrieval jobs are in flight.
+[src/app.py](cci:7://file://wsl.localhost/Ubuntu-22.04/home/alex/projects/rag0/src/app.py:0:0-0:0) runs the interactive loop: it starts `MainWorkflow`, then keeps polling Temporal (`get_next_prompt`, `get_last_result`) so the CLI always shows the latest prompts and results. When the workflow publishes available commands, the CLI returns the user’s choice through the `MainWorkflow.submit_input` signal, and the workflow responds by launching the appropriate child workflow (e.g., ingestion, ask) or activity such as `stats` or `quit`.
 
 ## Ingestion Workflow
 
@@ -155,7 +162,7 @@ The CLI and workflows read from flags or environment variables (via `.env`):
 - `--ask-reflection-enabled` / `RAG0_ASK_REFLECTION_ENABLED`
 - `--ask-temperature` / `RAG0_ASK_TEMPERATURE`
 
-Set `RAG0_ASK_REFLECTION_ENABLED=0` in `.env` (or pass `--ask-reflection-disabled`) to turn off the reflective grading loop. These values flow into `MainWorkflowConfig` and the `AskAgentConfig`, letting you tailor retrieval depth, reflection behavior, and model parameters per run.
+Set `RAG0_ASK_REFLECTION_ENABLED=0` in `.env` (or pass `--ask-reflection-disabled`) to turn off the reflective grading loop. These values flow into the shared `WorkflowConfig` and the `AskAgentConfig`, letting you tailor retrieval depth, reflection behavior, and model parameters per run.
 
 ## Developer Tooling
 

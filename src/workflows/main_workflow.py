@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from temporalio import exceptions as temporal_exceptions
 from temporalio import workflow
 
+from ..config import WorkflowConfig
 from .ingestion_workflow import IngestionWorkflow
 from .question_workflow import QuestionWorkflow, QuestionWorkflowInput
 
@@ -27,46 +28,6 @@ class CommandPayload:
     arguments: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class MainWorkflowConfig:
-    """Configuration parameters provided to the main workflow."""
-
-    parsed_dir: str = "parsed"
-    index_dir: str = "storage/index"
-    ask_top_k: int = 6
-    ollama_model: str = "qwen3:4b"
-    ollama_base_url: str = "http://127.0.0.1:11434"
-    temperature: float = 0.0
-    max_subquestions: int = 3
-    chunk_size: int = 700
-    chunk_overlap: int = 150
-    chunk_merge_threshold: int = 60
-    neighbor_span: int = 1
-    reflection_enabled: bool = True
-    max_reflections: int = 2
-    min_citations: int = 1
-
-    def to_activity_payload(self) -> Dict[str, Any]:
-        """Return a dict compatible with activity execution."""
-
-        return {
-            "parsed_dir": self.parsed_dir,
-            "index_dir": self.index_dir,
-            "ask_top_k": self.ask_top_k,
-            "ollama_model": self.ollama_model,
-            "ollama_base_url": self.ollama_base_url,
-            "temperature": self.temperature,
-            "max_subquestions": self.max_subquestions,
-            "chunk_size": self.chunk_size,
-            "chunk_overlap": self.chunk_overlap,
-            "chunk_merge_threshold": self.chunk_merge_threshold,
-            "neighbor_span": self.neighbor_span,
-            "reflection_enabled": self.reflection_enabled,
-            "max_reflections": self.max_reflections,
-            "min_citations": self.min_citations,
-        }
-
-
 @workflow.defn
 class MainWorkflow:
     """Entry workflow coordinating CLI commands and downstream workflows."""
@@ -77,7 +38,7 @@ class MainWorkflow:
         self._result_revision = 0
         self._next_prompt: Dict[str, Any] = {"prompt": "", "revision": 0}
         self._prompt_revision = 0
-        self._config: Optional[MainWorkflowConfig] = None
+        self._config: Optional[WorkflowConfig] = None
         self._active_command: Optional[str] = None
         self._active_progress: List[Dict[str, Any]] = []
 
@@ -120,8 +81,8 @@ class MainWorkflow:
         self._store_result(interim)
 
     @workflow.run
-    async def run(self, config: Optional[MainWorkflowConfig] = None) -> Dict[str, Any]:
-        self._config = config or MainWorkflowConfig()
+    async def run(self, config: Optional[WorkflowConfig] = None) -> Dict[str, Any]:
+        self._config = config or WorkflowConfig()
         await self._refresh_prompt()
 
         while True:
@@ -273,4 +234,4 @@ class MainWorkflow:
         return payload
 
 
-__all__ = ["CommandPayload", "MainWorkflow", "MainWorkflowConfig"]
+__all__ = ["CommandPayload", "MainWorkflow"]

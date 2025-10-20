@@ -10,6 +10,7 @@ from typing import Callable, Dict, Optional, Tuple
 from dotenv import load_dotenv
 from temporalio.client import Client, WorkflowHandle
 
+from .config import WorkflowConfig
 from .utils.cli import (
     DEFAULT_THEME,
     RICH_AVAILABLE,
@@ -22,7 +23,7 @@ from .utils.cli import (
     temporal_ui_url,
     workflow_history_url,
 )
-from .workflows import MainWorkflow, MainWorkflowConfig
+from .workflows import MainWorkflow
 
 load_dotenv()
 
@@ -132,56 +133,22 @@ async def _poll_for_result(
         await asyncio.sleep(0.05)
 
 
-async def _start_workflow(
-    parsed_dir: str,
-    index_dir: str,
-    address: str,
-    namespace: str,
-    task_queue: str,
-    workflow_id_prefix: Optional[str],
-    ask_top_k: int,
-    ask_max_subquestions: int,
-    ask_neighbor_span: int,
-    ask_reflection_enabled: bool,
-    ask_max_reflections: int,
-    ask_min_citations: int,
-    ollama_model: str,
-    ollama_base_url: str,
-    ask_temperature: float,
-    chunk_size: int,
-    chunk_overlap: int,
-    chunk_merge_threshold: int,
-) -> Tuple[WorkflowHandle, str, Optional[str], Optional[str]]:
+async def _start_workflow(cfg: WorkflowConfig) -> Tuple[WorkflowHandle, str, Optional[str], Optional[str]]:
     """Create workflow config, start the run, and return identifiers."""
 
-    ui_url = temporal_ui_url(address, namespace)
+    ui_url = temporal_ui_url(cfg.address, cfg.namespace)
 
-    client = await Client.connect(address, namespace=namespace)
-    config = MainWorkflowConfig(
-        parsed_dir=parsed_dir,
-        index_dir=index_dir,
-        ask_top_k=ask_top_k,
-        max_subquestions=ask_max_subquestions,
-        neighbor_span=ask_neighbor_span,
-        reflection_enabled=ask_reflection_enabled,
-        max_reflections=ask_max_reflections,
-        min_citations=ask_min_citations,
-        ollama_model=ollama_model,
-        ollama_base_url=ollama_base_url,
-        temperature=ask_temperature,
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        chunk_merge_threshold=chunk_merge_threshold,
-    )
+    client = await Client.connect(cfg.address, namespace=cfg.namespace)
+    workflow_config = cfg.copy()
 
-    prefix = (workflow_id_prefix or "main").strip() or "main"
+    prefix = cfg.workflow_id_prefix_value()
     wf_id = f"{prefix}-{uuid.uuid4().hex}"
 
     handle = await client.start_workflow(
         MainWorkflow.run,
-        config,
+        workflow_config,
         id=wf_id,
-        task_queue=task_queue,
+        task_queue=cfg.task_queue,
     )
 
     workflow_link = workflow_history_url(ui_url, wf_id) if ui_url else None
@@ -368,46 +335,8 @@ async def _run_workflow_plain(
             print("\nInterrupted. Exiting session.")
 
 
-async def _run_workflow_interactive(
-    parsed_dir: str,
-    index_dir: str,
-    address: str,
-    namespace: str,
-    task_queue: str,
-    workflow_id_prefix: Optional[str],
-    ask_top_k: int,
-    ask_max_subquestions: int,
-    ask_neighbor_span: int,
-    ask_reflection_enabled: bool,
-    ask_max_reflections: int,
-    ask_min_citations: int,
-    ollama_model: str,
-    ollama_base_url: str,
-    ask_temperature: float,
-    chunk_size: int,
-    chunk_overlap: int,
-    chunk_merge_threshold: int,
-) -> None:
-    handle, wf_id, ui_url, workflow_link = await _start_workflow(
-        parsed_dir=parsed_dir,
-        index_dir=index_dir,
-        address=address,
-        namespace=namespace,
-        task_queue=task_queue,
-        workflow_id_prefix=workflow_id_prefix,
-        ask_top_k=ask_top_k,
-        ask_max_subquestions=ask_max_subquestions,
-        ask_neighbor_span=ask_neighbor_span,
-        ask_reflection_enabled=ask_reflection_enabled,
-        ask_max_reflections=ask_max_reflections,
-        ask_min_citations=ask_min_citations,
-        ollama_model=ollama_model,
-        ollama_base_url=ollama_base_url,
-        ask_temperature=ask_temperature,
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        chunk_merge_threshold=chunk_merge_threshold,
-    )
+async def _run_workflow_interactive(cfg: WorkflowConfig) -> None:
+    handle, wf_id, ui_url, workflow_link = await _start_workflow(cfg)
 
     try:
         await _run_workflow_plain(handle, wf_id, ui_url, workflow_link)
@@ -420,28 +349,8 @@ def main() -> None:
     parser = build_main_cli_parser()
     args = parser.parse_args()
 
-    asyncio.run(
-        _run_workflow_interactive(
-            parsed_dir=args.parsed_dir,
-            index_dir=args.index_dir,
-            address=args.address,
-            namespace=args.namespace,
-            task_queue=args.task_queue,
-            workflow_id_prefix=args.workflow_id_prefix,
-            ask_top_k=args.ask_top_k,
-            ask_max_subquestions=args.ask_max_subquestions,
-            ask_neighbor_span=args.ask_neighbor_span,
-            ask_reflection_enabled=args.ask_reflection_enabled,
-            ask_max_reflections=args.ask_max_reflections,
-            ask_min_citations=args.ask_min_citations,
-            ollama_model=args.ollama_model,
-            ollama_base_url=args.ollama_base_url,
-            ask_temperature=args.ask_temperature,
-            chunk_size=args.chunk_size,
-            chunk_overlap=args.chunk_overlap,
-            chunk_merge_threshold=args.chunk_merge_threshold,
-        )
-    )
+    config = WorkflowConfig(**vars(args))
+    asyncio.run(_run_workflow_interactive(config))
 
 
 if __name__ == "__main__":  # pragma: no cover
