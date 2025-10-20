@@ -2,6 +2,9 @@
 
 This project aimed to demonstrate the use of Temporal for orchestrating document processing workflows using different tools like Docling, LlamaIndex, Ollama, LangGraph, and ChromaDB. It also shows different approaches for ingesting and retrieving documents: for ingesting documents, we can use Docling, LlamaIndex, and Ollama with predifined workflow steps. For retrieving documents, we can use LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
 
+> [!WARNING]
+> This is not a "How to build a best RAG system" guide. It is a "How to use Temporal for orchestrating document processing workflows to build production ready RAG system" guide.
+
 ## Why I created this project?
 
 - Most examples online skip the end-to-end document pipeline.
