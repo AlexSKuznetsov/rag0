@@ -4,6 +4,7 @@ This project aimed to demonstrate how to build durable document processing (RAG)
 - for ingesting - Docling, LlamaIndex, and Ollama with predifined workflow steps.
 - for retrieving  - LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
 </br>
+
 > [!WARNING]
 > This document is not a "How to build a best in class RAG system". It is a "How to use Temporal for orchestrating document processing workflows to build Production Ready RAG system" guide.
 

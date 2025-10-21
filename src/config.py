@@ -14,15 +14,15 @@ DEFAULT_TEMPORAL_NAMESPACE = "default"
 DEFAULT_TEMPORAL_TASK_QUEUE = "rag0"
 DEFAULT_WORKFLOW_ID_PREFIX: Optional[str] = None
 DEFAULT_OLLAMA_MODEL = os.environ.get("RAG0_OLLAMA_MODEL", "qwen3:4b")
-DEFAULT_OLLAMA_BASE_URL = os.environ.get(
-    "RAG0_OLLAMA_BASE_URL", "http://127.0.0.1:11434"
-)
+DEFAULT_OLLAMA_BASE_URL = os.environ.get("RAG0_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 DEFAULT_ASK_TOP_K = int(os.environ.get("RAG0_ASK_TOP_K", "6"))
 DEFAULT_ASK_MAX_SUBQUESTIONS = int(os.environ.get("RAG0_ASK_MAX_SUBQUESTIONS", "3"))
 DEFAULT_ASK_NEIGHBOR_SPAN = int(os.environ.get("RAG0_ASK_NEIGHBOR_SPAN", "1"))
-DEFAULT_ASK_REFLECTION_ENABLED = (
-    os.environ.get("RAG0_ASK_REFLECTION_ENABLED", "1").lower() not in {"0", "false", "no"}
-)
+DEFAULT_ASK_REFLECTION_ENABLED = os.environ.get("RAG0_ASK_REFLECTION_ENABLED", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+}
 DEFAULT_ASK_MAX_REFLECTIONS = int(os.environ.get("RAG0_ASK_MAX_REFLECTIONS", "2"))
 DEFAULT_ASK_MIN_CITATIONS = int(os.environ.get("RAG0_ASK_MIN_CITATIONS", "1"))
 DEFAULT_ASK_TEMPERATURE = float(os.environ.get("RAG0_ASK_TEMPERATURE", "0.0"))
