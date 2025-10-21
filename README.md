@@ -1,9 +1,11 @@
-# RAG0 Document processing orchestration with Temporal
+# RAG0 - Durable document processing with Temporal
 
-This project aimed to demonstrate the use of Temporal for orchestrating document processing workflows using different tools like Docling, LlamaIndex, Ollama, LangGraph, and ChromaDB. It also shows different approaches for ingesting and retrieving documents: for ingesting documents, we can use Docling, LlamaIndex, and Ollama with predifined workflow steps. For retrieving documents, we can use LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
-
+This project aimed to demonstrate how to build durable document processing (RAG) workflows with Temporal using different tools for ingesting and retrieving:
+- for ingesting - Docling, LlamaIndex, and Ollama with predifined workflow steps.
+- for retrieving  - LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
+</br>
 > [!WARNING]
-> This is not a "How to build a best RAG system" guide. It is a "How to use Temporal for orchestrating document processing workflows to build production ready RAG system" guide.
+> This document is not a "How to build a best in class RAG system". It is a "How to use Temporal for orchestrating document processing workflows to build Production Ready RAG system" guide.
 
 ## Why I created this project?
 
@@ -42,6 +44,7 @@ rag0/
 - [ChromaDB](https://www.trychroma.com/) as the embedded vector database backed by `storage/index/`.
 - [Qwen3-4b](https://ollama.com/library/qwen3:4b) Qwen3 4b MoE model served via [Ollama](https://ollama.com/). 
 - [Granite Embedding](https://ollama.com/library/granite-embedding) lightweight embedding model served via [Ollama](https://ollama.com/).
+- OPTIONAL: [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR) or [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL) for vision parsing images.
 
 
 ## Workflow Overview
@@ -73,11 +76,13 @@ flowchart LR
     Index --> Retrieve
 ```
 
-## Event Loop
+## CLI and  Event Loop
 
 ![Event Loop Diagram](docs/event-loop.png)
 
-[src/app.py](cci:7://file://wsl.localhost/Ubuntu-22.04/home/alex/projects/rag0/src/app.py:0:0-0:0) runs the interactive loop: it starts `MainWorkflow`, then keeps polling Temporal (`get_next_prompt`, `get_last_result`) so the CLI always shows the latest prompts and results. When the workflow publishes available commands, the CLI returns the user’s choice through the `MainWorkflow.submit_input` signal, and the workflow responds by launching the appropriate child workflow (e.g., ingestion, ask) or activity such as `stats` or `quit`.
+[src/app.py](cci:7://file://wsl.localhost/Ubuntu-22.04/home/alex/projects/rag0/src/app.py:0:0-0:0) runs the interactive loop: it starts `MainWorkflow`, then keeps polling Temporal (`get_next_prompt`, `get_last_result`) so the CLI always shows the latest prompts and results. When the workflow publishes available commands, the CLI returns the user’s choice through the `MainWorkflow.submit_input` signal, and the workflow responds by launching the appropriate child workflow (e.g., ingestion, ask) or activity such as `stats` or `quit`. 
+</br>
+*I have a plans to replace CLI tool with separated package using Golang and [BubbleTea TUI Framework](https://github.com/charmbracelet/bubbletea).*
 
 ## Ingestion Workflow
 
@@ -89,6 +94,11 @@ flowchart LR
 4. **Persist** – Structured artifacts are written to `parsed/` via `store_parsed_document_activity`, preserving the raw extraction output for debugging.
 5. **Index** – `update_vector_index_activity` leverages `src/ingestion/vector_store.py` to embed chunks, update the Chroma collection under `storage/index/`, and register document fingerprints for future refreshes.
 
+[!TIP]: Since Temporal provide nice UI for debugging and observability you can open `http://localhost:8080` to see the Temporal UI.
+
+Example of Ingestion Workflow in Temporal UI:
+![Ingestion Temporal UI](docs/ingestion-temporal-ui.png)
+
 ## Ask Workflow
 
 ![Ask Workflow Diagram](docs/ask-workflow.png)
@@ -98,6 +108,7 @@ flowchart LR
 3. **Retrieval** – Multi-query retrieval pulls from the Chroma index (`storage/index/`), deduplicating chunks and expanding neighborhoods when reflection requires new context.
 4. **Synthesis** – Responses are generated through Ollama, enriched with citations, and backed by reasoning traces so operators can inspect decision points.
 5. **Fallbacks & Stats** – If the LLM is unavailable, the fallback responder surfaces multiple context snippets. Activity metrics are sent through `src/activities/stats.py` to power future observability dashboards.
+
 
 ## Setup
 
@@ -177,9 +188,10 @@ Set `RAG0_ASK_REFLECTION_ENABLED=0` in `.env` (or pass `--ask-reflection-disable
 
 ## Future Features
 
-- API server to expose ingestion and ask workflows programmatically.
-- Extended telemetry and stats dashboards sourced from workflow and activity metrics.
-- Settings manager (CLI + file-based) for sharing configuration presets across teams.
+- API server to expose ingestion and ask workflows programmatically (Fast API package).
+- Extended telemetry and stats dashboards sourced from workflow and activity metrics (Prometheus + Grafana).
+- MCP package for using from your favorite LLM.
+- Settings manager (CLI + file-based) for sharing configuration presets across teams (Golang + BubbleTea TUI).
 - Scheduled re-ingestion and drift detection for long-lived document collections.
 - Plug-in retrievers for external knowledge bases alongside the local Chroma index.
 
