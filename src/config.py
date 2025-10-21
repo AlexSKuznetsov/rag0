@@ -83,6 +83,6 @@ class WorkflowConfig:
     def copy(self, **updates: Any) -> "WorkflowConfig":
         """Return a shallow copy with optional overrides."""
 
-        values = {name: getattr(self, name) for name in self.__dataclass_fields__}  # type: ignore[attr-defined]
+        values = {name: getattr(self, name) for name in self.__dataclass_fields__}
         values.update(updates)
         return WorkflowConfig(**values)

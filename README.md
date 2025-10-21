@@ -40,7 +40,6 @@ rag0/
 - [Python 3.11+](https://www.python.org/) with [`uv`](https://github.com/astral-sh/uv)-powered dependency management (Makefile fallback to `pip`).
 - [Temporal Server](https://temporal.io/) and the [Temporal Python SDK](https://docs.temporal.io/dev-guide/python/) for workflow orchestration and scheduling.
 - [Docling](https://github.com/DS4SD/docling) for text-first PDF ingestion, paired with optional [LlamaIndex](https://www.llamaindex.ai/) normalization.
-- Vision-capable LLMs (e.g., [Qwen 3-VL](https://qwenlm.github.io/en/) via [Ollama](https://ollama.com/)) to OCR scanned PDFs and images.
 - [LangGraph](https://langchain-ai.github.io/langgraph/) + [LangChain](https://www.langchain.com/) to build the ask agent, including grading nodes and query rewriting.
 - [ChromaDB](https://www.trychroma.com/) as the embedded vector database backed by `storage/index/`.
 - [Qwen3-4b](https://ollama.com/library/qwen3:4b) Qwen3 4b MoE model served via [Ollama](https://ollama.com/). 
@@ -77,7 +76,7 @@ flowchart LR
     Index --> Retrieve
 ```
 
-## CLI and  Event Loop
+## CLI and Event Loop
 
 ![Event Loop Diagram](docs/event-loop.png)
 
@@ -101,9 +100,9 @@ flowchart LR
 Example of Ingestion Workflow in Temporal UI:
 ![Ingestion Temporal UI](docs/ingestion-temporal-ui.png)
 
-## Ask Workflow
+## Retrieval Workflow
 
-![Ask Workflow Diagram](docs/ask-workflow.png)
+![Retrieval Workflow Diagram](docs/retrieval-workflow.png)
 
 1. **Dispatch** – The CLI issues `/ask` commands that enqueue `QuestionWorkflow` executions with an `AskAgentConfig` payload.
 2. **Agent Loop** – `src/agents/ask/graph.py` builds a LangGraph with `grade_documents`, `rewrite_query`, and `grade_answer` nodes interleaved between reasoning and response.
@@ -188,19 +187,20 @@ Set `RAG0_ASK_REFLECTION_ENABLED=0` in `.env` (or pass `--ask-reflection-disable
 - Run `pre-commit install` after `make install` to enable the Ruff, MyPy, and pytest hooks.
 - GitHub Actions (`.github/workflows/ci.yml`) mirrors these steps with uv-powered environments and uploads `coverage.xml`.
 
-## Future Features
+## Future plans
 
-- API server to expose ingestion and ask workflows programmatically (Fast API package).
-- Extended telemetry and stats dashboards sourced from workflow and activity metrics (Prometheus + Grafana).
-- MCP package for using from your favorite LLM.
-- Settings manager (CLI + file-based) for sharing configuration presets across teams (Golang + BubbleTea TUI).
-- Scheduled re-ingestion and drift detection for long-lived document collections.
-- Plug-in retrievers for external knowledge bases alongside the local Chroma index.
+- add API server to expose ingestion and ask workflows programmatically (Fast API package).
+- add Extended telemetry and stats dashboards sourced from workflow and activity metrics (Prometheus + Grafana).
+- add MCP package for using from your favorite LLM.
+- add Settings manager (SQLite or YAML) for sharing configuration presets.
+- add Scheduled re-ingestion and drift detection for long-lived document collections.
+- add Plug-in retrievers for external knowledge bases alongside the local Chroma index.
+- add Evals (LangFuse or similar) for tracking model performance.
 
 ## Q&A
 
 **Q:** Why use Temporal?  
 **A:** Temporal makes the ingestion and ask orchestration more reliable by handling retries, state tracking, and long-running execution without custom infrastructure.
 
-**Q:** Why do I need LangGraph if I can write logic with a Temporal workflow alone?  
+**Q:** Why do I need LangGraph (or LlamaIndex) if I can write logic with a Temporal workflow alone?  
 **A:** You certainly can build everything inside Temporal, but this project demonstrates how familiar tools like LangGraph and LlamaIndex can plug into Temporal to add agentic retrieval logic without rebuilding it from scratch.
