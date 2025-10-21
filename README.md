@@ -94,7 +94,8 @@ flowchart LR
 4. **Persist** – Structured artifacts are written to `parsed/` via `store_parsed_document_activity`, preserving the raw extraction output for debugging.
 5. **Index** – `update_vector_index_activity` leverages `src/ingestion/vector_store.py` to embed chunks, update the Chroma collection under `storage/index/`, and register document fingerprints for future refreshes.
 
-[!TIP]: Since Temporal provide nice UI for debugging and observability you can open `http://localhost:8080` to see the Temporal UI.
+> [!TIP]
+> Since Temporal provide nice UI for debugging and observability you can open `http://localhost:8080` to see the Temporal UI.
 
 Example of Ingestion Workflow in Temporal UI:
 ![Ingestion Temporal UI](docs/ingestion-temporal-ui.png)
