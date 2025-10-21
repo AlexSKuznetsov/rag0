@@ -1,12 +1,12 @@
 # RAG0 - Durable document processing with Temporal
 
-This project aimed to demonstrate how to build durable document processing (RAG) workflows with Temporal using different tools for ingesting and retrieving:
-- for ingesting - Docling, LlamaIndex, and Ollama with predifined workflow steps.
-- for retrieving  - LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
+This project aimed to demonstrate how to **build durable document processing (RAG) workflows with Temporal** using different tools for ingesting and retrieving:
+- ➡️ for ingesting - Docling, LlamaIndex, and Ollama with predifined workflow steps.
+- ⬅️ for retrieving  - LangGraph Agentinc mode where AI agent can dicide which tools to use to answer question.
 </br>
 
 > [!WARNING]
-> This document is not a "How to build a best in class RAG system". It is a "How to use Temporal for orchestrating document processing workflows to build Production Ready RAG system" guide.
+> This document **is not** a "How to build a best in class RAG system". It is a "How to use Temporal for orchestrating document processing workflows to build Production Ready RAG system" guide.
 
 ## Why I created this project?
 
@@ -80,11 +80,12 @@ flowchart LR
 
 ![Event Loop Diagram](docs/event-loop.png)
 
-[src/app.py](cci:7://file://wsl.localhost/Ubuntu-22.04/home/alex/projects/rag0/src/app.py:0:0-0:0) runs the interactive loop: it starts `MainWorkflow`, then keeps polling Temporal (`get_next_prompt`, `get_last_result`) so the CLI always shows the latest prompts and results. When the workflow publishes available commands, the CLI returns the user’s choice through the `MainWorkflow.submit_input` signal, and the workflow responds by launching the appropriate child workflow (e.g., ingestion, ask) or activity such as `stats` or `quit`. 
+[src/app.py](cci:7://file://wsl.localhost/Ubuntu-22.04/home/alex/projects/rag0/src/app.py:0:0-0:0) runs the interactive loop: it starts `MainWorkflow`, then keeps polling (using queries) Temporal (`get_next_prompt`, `get_last_result`) so the CLI always shows the latest prompts and results. When the workflow publishes available commands, the CLI returns the user’s choice through the `MainWorkflow.submit_input` signal, and the workflow responds by launching the appropriate child workflow (e.g., ingestion, ask) or activity such as `stats` or `quit`. 
 </br>
-*I have a plans to replace CLI tool with separated package using Golang and [BubbleTea TUI Framework](https://github.com/charmbracelet/bubbletea).*
+*I have a plans to replace CLI tool with separated package using Golang and [BubbleTea TUI Framework](https://github.com/charmbracelet/bubbletea) for better user experience and performance.*
 
 ## Ingestion Workflow
+Ingestion workflow recives path to the document as a payload and processes it through several steps:
 
 ![Ingestion Workflow Diagram](docs/ingestion-workflow.png)
 
@@ -95,7 +96,7 @@ flowchart LR
 5. **Index** – `update_vector_index_activity` leverages `src/ingestion/vector_store.py` to embed chunks, update the Chroma collection under `storage/index/`, and register document fingerprints for future refreshes.
 
 > [!TIP]
-> Since Temporal provide nice UI for debugging and observability you can open `http://localhost:8080` to see the Temporal UI.
+> Since Temporal provide nice [UI for debugging and observability](https://docs.temporal.io/evaluate/understanding-temporal#temporal-ui) you can open `http://localhost:8080` to see the progress of the workflow.
 
 Example of Ingestion Workflow in Temporal UI:
 ![Ingestion Temporal UI](docs/ingestion-temporal-ui.png)
@@ -204,3 +205,6 @@ Set `RAG0_ASK_REFLECTION_ENABLED=0` in `.env` (or pass `--ask-reflection-disable
 
 **Q:** Why do I need LangGraph (or LlamaIndex) if I can write logic with a Temporal workflow alone?  
 **A:** You certainly can build everything inside Temporal, but this project demonstrates how familiar tools like LangGraph and LlamaIndex can plug into Temporal to add agentic retrieval logic without rebuilding it from scratch.
+
+**Q:** Why polling temporal for updates?  
+**A:** This is a simple way to implement interactive loop. I can use meassage broker like NATS or Redis to implement more complex workflow. Maybe I will add this in the future.
